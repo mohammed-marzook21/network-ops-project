@@ -1,0 +1,23 @@
+# Data files - too large for git, and not code
+data/raw/
+data/processed/
+data/analytics/
+data/phase2_output/
+data/empty_test/
+data/reference/*.jsonl
+data/reference/*.csv
+!data/reference/milano-grid.geojson
+
+# Virtual environment - never commit this, it's huge and machine-specific
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# VS Code settings (optional - some teams commit this, some don't)
+.vscode/
+
+# OS junk files
+.DS_Store
+Thumbs.db
