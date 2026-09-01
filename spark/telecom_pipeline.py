@@ -7,9 +7,18 @@ docs/phase2/sp7_job_contract.md for the documented input/output contract.
 """
 
 import os
-os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-17"
-os.environ["HADOOP_HOME"] = r"C:\network-ops-project\tools\hadoop"
-os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["HADOOP_HOME"] + r"\bin;" + os.environ["PATH"]
+import platform
+
+if platform.system() == "Windows":
+    os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-17"
+    os.environ["HADOOP_HOME"] = r"C:\network-ops-project\tools\hadoop"
+    os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["HADOOP_HOME"] + r"\bin;" + os.environ["PATH"]
+# On Linux (the VM), JAVA_HOME is already exported via ~/.bashrc, and
+# no winutils/HADOOP_HOME workaround is needed at all -- that native-IO
+# problem was specific to Windows.
+
+
+
 
 import argparse
 import glob
