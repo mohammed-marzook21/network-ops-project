@@ -154,6 +154,30 @@ def write_audit_record(log_path, filename, status, row_count, reason, processed_
 
 def already_processed(filename, log_path):
     """
+    Check the audit log to see if this exact filename was successfully
+    processed in a previous run.
+
+    Rejected files are NOT treated as duplicates so that a corrected
+    version can be reprocessed.
+    """
+    if not os.path.exists(log_path):
+        return False
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if (
+                record.get("filename") == filename
+                and record.get("status") == "accepted"
+            ):
+                return True
+
+    return False
+    """
     Check the audit log to see if this exact filename has already been
     successfully processed (accepted or rejected) in a previous run.
     Used to make re-running idempotent: re-processing an already-seen

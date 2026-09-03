@@ -7,6 +7,7 @@ docs/phase2/sp7_job_contract.md for the documented input/output contract.
 """
 
 import os
+import json
 import platform
 
 if platform.system() == "Windows":
@@ -298,6 +299,19 @@ def main():
         hourly_grid_summary = aggregate(clean_df)
         enriched_df = enrich(hourly_grid_summary, args.reference_dir, spark)
         output_rows = write_outputs(clean_df, hourly_grid_summary, args.output_dir)
+
+        metrics_path = os.path.join(args.output_dir, "spark_metrics.json")
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "input_rows": input_rows,
+                    "rejected_rows": rejected_rows,
+                    "nulls_handled": nulls_handled,
+                    "rows_published": output_rows,
+                },
+                f,
+                indent=2,
+            )
 
         status = "SUCCESS"
     except SystemExit:
