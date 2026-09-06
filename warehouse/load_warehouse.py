@@ -11,10 +11,37 @@ CREATE TABLE IF NOT EXISTS fact_network_activity (
     timestamp TEXT NOT NULL,
     total_sms REAL NOT NULL DEFAULT 0,
     total_calls REAL NOT NULL DEFAULT 0,
+    internet_activity REAL NOT NULL DEFAULT 0,
     total_activity REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (grid_id, timestamp)
 )
 """
+
+
+def ensure_schema(conn: sqlite3.Connection) -> None:
+    """
+    Keep existing Phase 3 warehouse compatible with Phase 6.
+
+    Older databases may already have fact_network_activity
+    without internet_activity. Add it safely when missing.
+    """
+
+    conn.execute(CREATE_TABLE_SQL)
+
+    columns = {
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(fact_network_activity)"
+        ).fetchall()
+    }
+
+    if "internet_activity" not in columns:
+        conn.execute(
+            """
+            ALTER TABLE fact_network_activity
+            ADD COLUMN internet_activity REAL NOT NULL DEFAULT 0
+            """
+        )
 
 
 def load_warehouse(analytics_file: str, db_path: str) -> dict:
@@ -35,6 +62,7 @@ def load_warehouse(analytics_file: str, db_path: str) -> dict:
         "timestamp",
         "total_sms",
         "total_calls",
+        "internet_activity",
         "total_activity",
     }
 
@@ -57,7 +85,7 @@ def load_warehouse(analytics_file: str, db_path: str) -> dict:
         )
 
     with sqlite3.connect(database_path) as conn:
-        conn.execute(CREATE_TABLE_SQL)
+        ensure_schema(conn)
 
         rows_published = 0
 
@@ -69,13 +97,15 @@ def load_warehouse(analytics_file: str, db_path: str) -> dict:
                     timestamp,
                     total_sms,
                     total_calls,
+                    internet_activity,
                     total_activity
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(grid_id, timestamp)
                 DO UPDATE SET
                     total_sms = excluded.total_sms,
                     total_calls = excluded.total_calls,
+                    internet_activity = excluded.internet_activity,
                     total_activity = excluded.total_activity
                 """,
                 (
@@ -83,9 +113,11 @@ def load_warehouse(analytics_file: str, db_path: str) -> dict:
                     str(row.timestamp),
                     float(row.total_sms),
                     float(row.total_calls),
+                    float(row.internet_activity),
                     float(row.total_activity),
                 ),
             )
+
             rows_published += 1
 
         conn.commit()

@@ -325,6 +325,75 @@ def _build_grid_rows(grid_rows):
     return output_rows
 
 
+def _get_source_sql(conn):
+    """
+    Return the activity-source query for the warehouse schema in use.
+
+    Supported schemas:
+    1. Phase 4/local:
+       fact_network_activity.time_key -> dim_time.time_key
+
+    2. Phase 3/VM:
+       fact_network_activity.timestamp directly
+    """
+    fact_columns = {
+        row["name"]
+        for row in conn.execute(
+            "PRAGMA table_info(fact_network_activity)"
+        ).fetchall()
+    }
+
+    if "timestamp" in fact_columns:
+        return """
+            SELECT
+                grid_id,
+                timestamp AS ts,
+                total_activity,
+                internet_activity
+            FROM fact_network_activity
+            ORDER BY
+                grid_id,
+                timestamp
+        """
+
+    if "time_key" in fact_columns:
+        dim_time_exists = conn.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'dim_time'
+            """
+        ).fetchone()
+
+        if dim_time_exists is None:
+            raise RuntimeError(
+                "Unsupported warehouse schema: "
+                "fact_network_activity contains time_key "
+                "but dim_time does not exist."
+            )
+
+        return """
+            SELECT
+                f.grid_id,
+                t.ts,
+                f.total_activity,
+                f.internet_activity
+            FROM fact_network_activity f
+            JOIN dim_time t
+                ON t.time_key = f.time_key
+            ORDER BY
+                f.grid_id,
+                t.ts
+        """
+
+    raise RuntimeError(
+        "Unsupported warehouse schema: expected "
+        "fact_network_activity.timestamp or "
+        "fact_network_activity.time_key."
+    )
+
+
 def build_features():
     if not os.path.exists(DB_PATH):
         raise FileNotFoundError(
@@ -342,21 +411,8 @@ def build_features():
         print(f"Recent feature window: {RECENT_HOURS} hours")
         print(f"Prior baseline window: {BASELINE_HOURS} hours")
 
-        source_cursor = conn.execute(
-            """
-            SELECT
-                f.grid_id,
-                t.ts,
-                f.total_activity,
-                f.internet_activity
-            FROM fact_network_activity f
-            JOIN dim_time t
-                ON t.time_key = f.time_key
-            ORDER BY
-                f.grid_id,
-                t.ts
-            """
-        )
+        source_sql = _get_source_sql(conn)
+        source_cursor = conn.execute(source_sql)
 
         conn.execute("DELETE FROM network_feature_table")
         conn.commit()

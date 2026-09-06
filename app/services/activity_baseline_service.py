@@ -24,6 +24,27 @@ from typing import Literal
 BaselineBucket = Literal["all_history", "hour_of_day"]
 
 
+def _uses_direct_timestamp(conn) -> bool:
+    columns = {
+        row["name"]
+        for row in conn.execute(
+            "PRAGMA table_info(fact_network_activity)"
+        ).fetchall()
+    }
+
+    if "timestamp" in columns:
+        return True
+
+    if "time_key" in columns:
+        return False
+
+    raise RuntimeError(
+        "Unsupported warehouse schema: expected "
+        "fact_network_activity.timestamp or "
+        "fact_network_activity.time_key."
+    )
+
+
 def get_activity_baselines(
     conn,
     as_of: str,
@@ -52,49 +73,76 @@ def get_activity_baselines(
             }
         }
     """
-
+    direct_timestamp = _uses_direct_timestamp(conn)
     if bucket == "all_history":
-        rows = conn.execute(
-            """
-            SELECT
-                f.grid_id AS grid_id,
-                COUNT(*) AS sample_count,
-                AVG(f.total_activity) AS mean_val,
-                AVG(
-                    f.total_activity * f.total_activity
-                ) AS mean_sq
-            FROM fact_network_activity f
-            JOIN dim_time t
-                ON f.time_key = t.time_key
-            WHERE t.ts < ?
-            GROUP BY f.grid_id
-            """,
-            (as_of,),
-        ).fetchall()
+        if direct_timestamp:
+            rows = conn.execute(
+                """
+                SELECT
+                    grid_id,
+                    COUNT(*) AS sample_count,
+                    AVG(total_activity) AS mean_val,
+                    AVG(total_activity * total_activity) AS mean_sq
+                FROM fact_network_activity
+                WHERE timestamp < ?
+                GROUP BY grid_id
+                """,
+                (as_of,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT
+                    f.grid_id AS grid_id,
+                    COUNT(*) AS sample_count,
+                    AVG(f.total_activity) AS mean_val,
+                    AVG(f.total_activity * f.total_activity) AS mean_sq
+                FROM fact_network_activity f
+                JOIN dim_time t
+                    ON f.time_key = t.time_key
+                WHERE t.ts < ?
+                GROUP BY f.grid_id
+                """,
+                (as_of,),
+            ).fetchall()
 
     elif bucket == "hour_of_day":
-        rows = conn.execute(
-            """
-            SELECT
-                f.grid_id AS grid_id,
-                COUNT(*) AS sample_count,
-                AVG(f.total_activity) AS mean_val,
-                AVG(
-                    f.total_activity * f.total_activity
-                ) AS mean_sq
-            FROM fact_network_activity f
-            JOIN dim_time t
-                ON f.time_key = t.time_key
-            WHERE t.ts < ?
-              AND t.hour = (
-                    SELECT hour
-                    FROM dim_time
-                    WHERE ts = ?
-              )
-            GROUP BY f.grid_id
-            """,
-            (as_of, as_of),
-        ).fetchall()
+        if direct_timestamp:
+            rows = conn.execute(
+                """
+                SELECT
+                    grid_id,
+                    COUNT(*) AS sample_count,
+                    AVG(total_activity) AS mean_val,
+                    AVG(total_activity * total_activity) AS mean_sq
+                FROM fact_network_activity
+                WHERE timestamp < ?
+                AND strftime('%H', timestamp) = strftime('%H', ?)
+                GROUP BY grid_id
+                """,
+                (as_of, as_of),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT
+                    f.grid_id AS grid_id,
+                    COUNT(*) AS sample_count,
+                    AVG(f.total_activity) AS mean_val,
+                    AVG(f.total_activity * f.total_activity) AS mean_sq
+                FROM fact_network_activity f
+                JOIN dim_time t
+                    ON f.time_key = t.time_key
+                WHERE t.ts < ?
+                AND t.hour = (
+                        SELECT hour
+                        FROM dim_time
+                        WHERE ts = ?
+                )
+                GROUP BY f.grid_id
+                """,
+                (as_of, as_of),
+            ).fetchall()
 
     else:
         raise ValueError(

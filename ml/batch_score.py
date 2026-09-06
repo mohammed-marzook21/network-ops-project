@@ -89,12 +89,20 @@ def ensure_output_table(conn):
 
 
 def load_latest_features(conn):
-    latest = conn.execute(
-        """
-        SELECT MAX(feature_timestamp)
-        FROM network_feature_table
-        """
-    ).fetchone()[0]
+    try:
+        latest = conn.execute(
+            """
+            SELECT MAX(feature_timestamp)
+            FROM network_feature_table
+            """
+        ).fetchone()[0]
+    except sqlite3.OperationalError as exc:
+        if "no such table: network_feature_table" in str(exc):
+            raise RuntimeError(
+                "ML6 scoring cannot run: network_feature_table does not exist. "
+                "Run ML2 feature generation before ML6 scoring."
+            ) from exc
+        raise
 
     if latest is None:
         raise RuntimeError(
