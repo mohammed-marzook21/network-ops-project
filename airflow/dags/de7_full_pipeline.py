@@ -283,6 +283,75 @@ def load_warehouse_task(**context):
     print("Warehouse load completed successfully.")
 
 
+
+# -------------------------------------------------------------------
+# ML FEATURE GENERATION
+# -------------------------------------------------------------------
+
+def generate_ml_features_task(**context):
+    """
+    Generate ML feature tables from the warehouse.
+
+    Feature-engineering logic remains in ml.features
+    rather than being implemented inside the DAG.
+    """
+
+    sys.path.insert(0, PROJECT_ROOT)
+
+    from ml.features import build_features
+
+    print("Starting ML feature generation...")
+
+    try:
+        build_features()
+    except Exception as exc:
+        raise AirflowException(
+            f"ML feature generation failed: {exc}"
+        ) from exc
+
+    print("ML feature generation completed successfully.")
+
+
+# -------------------------------------------------------------------
+# ML6 RISK + ANOMALY SCORING
+# -------------------------------------------------------------------
+
+def ml_scoring_task(**context):
+    """
+    Run reusable ML risk scoring and anomaly scoring.
+
+    Risk-scoring logic remains in ml.batch_score.
+    Anomaly logic remains in ml.anomaly.
+    """
+
+    sys.path.insert(0, PROJECT_ROOT)
+
+    from ml.batch_score import score_latest_features
+    from ml.anomaly import main as run_anomaly_scoring
+
+    print("Starting ML6 batch scoring...")
+
+    try:
+        timestamp, scored_grids = score_latest_features()
+
+        print(
+            f"Risk scoring completed: "
+            f"{scored_grids} grids at {timestamp}"
+        )
+
+        print("Starting anomaly scoring...")
+        run_anomaly_scoring()
+
+    except Exception as exc:
+        raise AirflowException(
+            f"ML6 scoring failed: {exc}"
+        ) from exc
+
+    print(
+        "ML6 risk and anomaly scoring completed successfully."
+    )
+
+
 # -------------------------------------------------------------------
 # QUALITY CHECK
 # -------------------------------------------------------------------
@@ -331,6 +400,65 @@ def quality_check_task(**context):
             """
         ).fetchone()[0]
 
+        feature_rows = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM network_feature_table
+            """
+        ).fetchone()[0]
+
+        latest_feature_row = conn.execute(
+            """
+            SELECT MAX(feature_timestamp)
+            FROM network_feature_table
+            """
+        ).fetchone()
+
+        latest_feature_timestamp = (
+            latest_feature_row[0]
+            if latest_feature_row
+            else None
+        )
+
+        risk_rows = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM network_risk_scores
+            WHERE timestamp = ?
+            """,
+            (latest_feature_timestamp,),
+        ).fetchone()[0]
+
+        risk_duplicates = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM (
+                SELECT grid_id, timestamp
+                FROM network_risk_scores
+                GROUP BY grid_id, timestamp
+                HAVING COUNT(*) > 1
+            )
+            """
+        ).fetchone()[0]
+
+        missing_model_versions = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM network_risk_scores
+            WHERE model_version IS NULL
+               OR TRIM(model_version) = ''
+            """
+        ).fetchone()[0]
+
+        anomaly_rows = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM network_anomaly_scores
+            WHERE timestamp = ?
+            """,
+            (latest_feature_timestamp,),
+        ).fetchone()[0]
+
     finally:
         conn.close()
 
@@ -343,6 +471,39 @@ def quality_check_task(**context):
         raise AirflowException(
             f"Quality check failed: "
             f"{duplicate_grain} duplicate grain groups found."
+        )
+
+    if feature_rows == 0:
+        raise AirflowException(
+            "Quality check failed: "
+            "network_feature_table contains 0 rows."
+        )
+
+    if not latest_feature_timestamp:
+        raise AirflowException(
+            "Quality check failed: "
+            "no latest ML feature timestamp found."
+        )
+
+    if risk_rows == 0:
+        raise AirflowException(
+            "Quality check failed: "
+            "network_risk_scores contains "
+            "no scores for the latest feature timestamp."
+        )
+
+    if risk_duplicates != 0:
+        raise AirflowException(
+            f"Quality check failed: "
+            f"{risk_duplicates} duplicate "
+            f"risk-score grain groups found."
+        )
+
+    if missing_model_versions != 0:
+        raise AirflowException(
+            f"Quality check failed: "
+            f"{missing_model_versions} risk scores "
+            f"have missing model_version."
         )
 
     if not os.path.exists(SPARK_METRICS_FILE):
@@ -392,6 +553,8 @@ def quality_check_task(**context):
             "validate": "success",
             "spark_process": "success",
             "load_warehouse": "success",
+            "generate_ml_features": "success",
+            "ml_scoring": "success",
             "quality_check": "success",
         },
 
@@ -405,6 +568,14 @@ def quality_check_task(**context):
         "duplicate_grain_groups": duplicate_grain,
 
         "AS_OF": as_of,
+        "ml6": {
+            "feature_rows": feature_rows,
+            "feature_timestamp": latest_feature_timestamp,
+            "risk_rows": risk_rows,
+            "risk_duplicate_grain_groups": risk_duplicates,
+            "missing_model_versions": missing_model_versions,
+            "anomaly_rows": anomaly_rows,
+        },
     }
 
     os.makedirs(
@@ -455,6 +626,8 @@ def notify_task(**context):
         "validate",
         "spark_process",
         "load_warehouse",
+        "generate_ml_features",
+        "ml_scoring",
         "quality_check",
     ]
 
@@ -574,6 +747,16 @@ with DAG(
         python_callable=load_warehouse_task,
     )
 
+    generate_ml_features = PythonOperator(
+        task_id="generate_ml_features",
+        python_callable=generate_ml_features_task,
+    )
+
+    ml_scoring = PythonOperator(
+        task_id="ml_scoring",
+        python_callable=ml_scoring_task,
+    )
+
     quality_check = PythonOperator(
         task_id="quality_check",
         python_callable=quality_check_task,
@@ -589,4 +772,13 @@ with DAG(
     # Dependencies
     # ---------------------------------------------------------------
 
-    ingest >> validate >> spark_process >> load_warehouse >> quality_check >> notify
+    (
+        ingest
+        >> validate
+        >> spark_process
+        >> load_warehouse
+        >> generate_ml_features
+        >> ml_scoring
+        >> quality_check
+        >> notify
+    )

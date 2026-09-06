@@ -31,19 +31,49 @@ from app.services.activity_baseline_service import (
 ANOMALY_THRESHOLD = 2.0
 MIN_BASELINE_SAMPLES = 2
 
+def _uses_direct_timestamp(conn: sqlite3.Connection) -> bool:
+    columns = {
+        row["name"]
+        for row in conn.execute(
+            "PRAGMA table_info(fact_network_activity)"
+        ).fetchall()
+    }
+
+    if "timestamp" in columns:
+        return True
+
+    if "time_key" in columns:
+        return False
+
+    raise RuntimeError(
+        "Unsupported warehouse schema: expected "
+        "fact_network_activity.timestamp or "
+        "fact_network_activity.time_key."
+    )
+
 
 def get_latest_as_of(conn: sqlite3.Connection) -> str:
-    row = conn.execute(
-        """
-        SELECT MAX(ts) AS as_of
-        FROM dim_time
-        """
-    ).fetchone()
+    direct_timestamp = _uses_direct_timestamp(conn)
+
+    if direct_timestamp:
+        row = conn.execute(
+            """
+            SELECT MAX(timestamp) AS as_of
+            FROM fact_network_activity
+            """
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """
+            SELECT MAX(ts) AS as_of
+            FROM dim_time
+            """
+        ).fetchone()
 
     if row is None or row["as_of"] is None:
         raise RuntimeError(
             "Cannot calculate ML4 anomalies: "
-            "dim_time contains no timestamps."
+            "warehouse contains no timestamps."
         )
 
     return row["as_of"]
@@ -112,20 +142,36 @@ def score_current_snapshot(
         bucket="hour_of_day",
     )
 
-    current_rows = conn.execute(
-        """
-        SELECT
-            f.grid_id,
-            t.ts,
-            f.total_activity
-        FROM fact_network_activity f
-        JOIN dim_time t
-            ON f.time_key = t.time_key
-        WHERE t.ts = ?
-        ORDER BY f.grid_id
-        """,
-        (as_of,),
-    ).fetchall()
+    direct_timestamp = _uses_direct_timestamp(conn)
+
+    if direct_timestamp:
+        current_rows = conn.execute(
+            """
+            SELECT
+                grid_id,
+                timestamp AS ts,
+                total_activity
+            FROM fact_network_activity
+            WHERE timestamp = ?
+            ORDER BY grid_id
+            """,
+            (as_of,),
+        ).fetchall()
+    else:
+        current_rows = conn.execute(
+            """
+            SELECT
+                f.grid_id,
+                t.ts,
+                f.total_activity
+            FROM fact_network_activity f
+            JOIN dim_time t
+                ON f.time_key = t.time_key
+            WHERE t.ts = ?
+            ORDER BY f.grid_id
+            """,
+            (as_of,),
+        ).fetchall()
 
     results = []
 
