@@ -1,0 +1,21 @@
+grid_id,timestamp,risk_score,risk_level,reason,model_version
+5059,2013-11-07 23:00:00,1.0,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5159,2013-11-07 23:00:00,1.0,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5258,2013-11-07 23:00:00,1.0,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5259,2013-11-07 23:00:00,1.0,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4459,2013-11-07 23:00:00,0.9999999999999998,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5061,2013-11-07 23:00:00,0.9999999999999998,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5161,2013-11-07 23:00:00,0.9999999999999993,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+6064,2013-11-07 23:00:00,0.9999999999999993,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+6058,2013-11-07 23:00:00,0.9999999999999796,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4956,2013-11-07 23:00:00,0.9999999999999607,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4855,2013-11-07 23:00:00,0.9999999999998359,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4961,2013-11-07 23:00:00,0.9999999999998319,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5261,2013-11-07 23:00:00,0.999999999999682,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4856,2013-11-07 23:00:00,0.999999999999573,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5758,2013-11-07 23:00:00,0.9999999999993356,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5256,2013-11-07 23:00:00,0.9999999999984979,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5262,2013-11-07 23:00:00,0.9999999999984972,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+4955,2013-11-07 23:00:00,0.9999999999980851,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5361,2013-11-07 23:00:00,0.9999999999866307,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1
+5163,2013-11-07 23:00:00,0.9999999999805049,high,"Model risk score 1.000 (high) indicates operational attention priority; investigate using network activity, alert, and anomaly evidence.",ml3-logreg-v1

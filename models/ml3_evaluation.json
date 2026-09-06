@@ -1,0 +1,76 @@
+{
+  "model_version": "ml3-logreg-v1",
+  "algorithm": "LogisticRegression",
+  "feature_names": [
+    "avg_activity",
+    "activity_growth",
+    "active_hours",
+    "peak_ratio",
+    "variability",
+    "internet_share"
+  ],
+  "target": {
+    "name": "high_activity_next_hour",
+    "percentile": 90,
+    "threshold": 1177.6937000000003,
+    "meaning": "Positive means investigate unusually high activity in the next hour. It does not mean confirmed congestion."
+  },
+  "train": {
+    "start": "2013-11-02 23:00:00",
+    "end": "2013-11-06 22:00:00",
+    "rows": 959908,
+    "base_rate": 0.10000020835330052
+  },
+  "test": {
+    "start": "2013-11-06 23:00:00",
+    "end": "2013-11-07 22:00:00",
+    "rows": 239976,
+    "base_rate": 0.10772743941060772
+  },
+  "metrics": {
+    "accuracy": 0.9529369603627029,
+    "precision": 0.8215390052124746,
+    "recall": 0.7194027541389447,
+    "base_rate": 0.10772743941060772,
+    "confusion_matrix": [
+      [
+        210084,
+        4040
+      ],
+      [
+        7254,
+        18598
+      ]
+    ]
+  },
+  "coefficients": [
+    {
+      "feature": "avg_activity",
+      "coefficient": 3.280087794998723
+    },
+    {
+      "feature": "peak_ratio",
+      "coefficient": 0.3725102120463283
+    },
+    {
+      "feature": "variability",
+      "coefficient": -0.20615102444616057
+    },
+    {
+      "feature": "activity_growth",
+      "coefficient": -0.11873467155330396
+    },
+    {
+      "feature": "internet_share",
+      "coefficient": -0.06121045495845577
+    },
+    {
+      "feature": "active_hours",
+      "coefficient": 0.0
+    }
+  ],
+  "limitations": [
+    "Only seven days of warehouse source history are currently available.",
+    "The high-activity label is a statistical proxy and is not a physical capacity or congestion label."
+  ]
+}

@@ -21,3 +21,13 @@ __pycache__/
 # OS junk files
 .DS_Store
 Thumbs.db
+# Runtime / generated files
+logs/
+data/pipeline_status/
+data/rejected/
+*.db
+
+# Temporary helper scripts
+check_features.py
+checknum.py
+verify.py
