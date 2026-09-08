@@ -31,3 +31,7 @@ data/rejected/
 check_features.py
 checknum.py
 verify.py
+# Environment secrets
+.env
+.env.*
+!.env.example
