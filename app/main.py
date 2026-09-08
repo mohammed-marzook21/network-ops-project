@@ -10,6 +10,7 @@ from app.routes.network_summary_route import router as network_summary_router
 from app.routes.operational_support_route import router as operational_support_router
 from app.routes.network_prediction_route import router as network_prediction_router
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.claude_noc_route import router as claude_noc_router
 app = FastAPI(
     title="Network Operations API",
     description=(
@@ -35,6 +36,7 @@ app.include_router(network_features_router)
 app.include_router(network_grid_router)
 app.include_router(network_intelligence_router)
 app.include_router(operational_support_router)
+app.include_router(claude_noc_router)
 @app.get(
     "/",
     summary="API health check",
